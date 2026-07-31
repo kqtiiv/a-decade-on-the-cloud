@@ -380,3 +380,147 @@ plot_bloch_vector([1, theta, phi], coord_type="spherical")
 - `bloch_angles(*statevec)` unpacks the two amplitudes and converts them to `(theta, phi)`.
 - `plot_bloch_vector([1, theta, phi], coord_type="spherical")` renders a unit-length vector (pure state → on the sphere's surface) at that polar/azimuthal position.
 
+
+## CHSH / bell test - proof it's not just hidden info
+
+- https://quantum.cloud.ibm.com/learning/en/courses/basics-of-quantum-information/entanglement-in-action/chsh-game
+- alice and bob share an entangled pair
+- they each pick a setting a, a' (degree/basis, etc) and measure
+- each measurement gives + or = 1
+= E(a, b) is N++ + N-- - N+- - N-+ / Ntotal
+- "how often did they agree, minus how often they disagreed"
+- S = E(a, b)-E(a, b')+E(a', b) + E(a', b')
+- correlation for every combination of alices 2 settings x bob's 2 settings
+- old classical idea: maybe particles just have secret pre-agreed answers baked in from the start (hidden variables), no real quantum weirdness
+- if that were true, correlations could only ever get up to S = 2 max (hard ceiling)
+- if each particle secretly carried fixed answers, each indiv E term is bounded between -1 and +1
+- A(a)B(b) - A(a)B(B') + A(a')B(b) + A(a')B(b') = A(a)[B(b)-B(b')] + A(a')[B(b)+B(b')]
+- quantum mechanics says correlations can hit S ~ 2.83 - and real experiments actually measure ~2.83
+- crossing 2 = proof the answers werent fixed in advance, entanglement is real not just secret classical agreement
+- Aspect did it first in 1982, "loophole-free" versions in 2015
+- locality, detection, freedom of choice loopholes
+- https://arxiv.org/pdf/0906.0703
+- https://www.emergentmind.com/topics/loophole-free-bell-tests
+- used a genuinely random generator (quantum generated) - look into this
+
+## no-cloning theorem - cant copy a qubit
+
+- https://advancedmath.org/Physics/Quantum/QM1/No-Cloning-Theorem.pdf
+- cant make a perfect copy of an unknown quantum state
+- why: quantum gates are linear -> if a machine copies |0> and |1> correctly, then feeding it a mix of both (superposition) doesnt give two copies of the mix, it gives a whole different (entangled) result instead
+- so a "clone anything" machine cant exist
+- only way to know what state something is = measure it, but measuring destroys the superposition anyway - cant peek without breaking it
+- why it matters:
+  - error correction: cant just "back up" a qubit like a file, so instead spread the info across multiple qubits (encode dont copy)
+  - crypto: eavesdropper cant copy+read a qubit without disturbing it = leaves a detectable trace (this is the whole basis of QKD)
+
+## teleportation - moving a qubit's state without copying it
+
+- https://quantum.cloud.ibm.com/learning/en/courses/basics-of-quantum-information/entanglement-in-action/quantum-teleportation
+
+![alt text](image-5.png)
+
+setup: alice + bob already share a bell pair (made ahead of time, before any of this starts)
+
+steps:
+1. alice does CNOT + H on her two qubits (the unknown state qubit + her half of the bell pair), then measures both -> gets 2 classical bits
+2. she sends those 2 bits to bob over a normal classical channel (speed of light limited, no shortcuts)
+3. bob applies X and/or Z to his qubit depending on what the bits say -> now his qubit = the original state, exactly
+
+- before bob gets the bits his qubit is just random garbage (mixed state) - the correction is what "activates" it
+- the original qubit gets measured/destroyed in the process -> so this isnt cloning, its a transfer. one copy only, consistent with no-cloning
+- entanglement did the "hard work" beforehand, the classical bits just tell bob how to unlock it
+
+## circuit version
+
+- H + CX on A,B = making the bell pair (step 0, happens first)
+- U gate on Q = just standing in for "some unknown state" to demo it works for anything
+- CX(Q,A) + H(Q) + measure Q,A = alice's bell measurement -> 2 classical bits
+- bits go down to classical register -> feed into "if" conditions
+- if c1: X on B, if c0: Z on B = bob's corrections
+- same exact structure/logic as the GHZ dynamic circuit stuff (measure mid circuit -> classically controlled pauli correction after)
+
+## closing takeaways
+
+- entanglement is a real, measured effect (chsh proves it) - not hand-wavy magic
+- doesnt let you send info faster than light - the classical bits still have to physically travel
+- but it does let you get correlations way stronger than any classical setup could fake
+- entanglement alone does nothing - its a resource, only useful once you build the right protocol around it (teleportation, GHZ tricks, etc all "spend" a bell pair differently)
+- teleportation = the simplest clean example of entanglement + measurement + classical correction actually doing something useful
+
+## decoherence
+
+![alt text](image-6.png)
+
+- decoherence = qubit losing info because it's not actually isolated, its "environment" is secretly entangling with it (same mechanism as a bell pair - just accidental/uncontrolled instead of on purpose)
+- T1 = energy relaxation, qubit decays 1->0
+- T2 = dephasing, qubit loses its phase info. always T2 <= 2*T1 (formula: 1/T2 = 1/2T1 + 1/T_phi)
+- T2 measured with an echo experiment: rotate 90deg (Rx pi/2) onto equator -> wait -> flip 180deg (Rx pi) -> wait same amount -> rotate back -> measure
+  - the 180 flip cancels out slow/systematic noise (spin echo) so what's left in the decay curve is just the fast random noise
+  - T2 = the decay constant of the exponential fit, i.e. time to drop to ~37% (1/e), not "difference between first and last point"
+
+## two error flavors
+
+- **coherent (systematic)**: same wrong thing every time, e.g. gate over-rotates by a fixed epsilon each time. CORRECTABLE because you can characterize the fixed error and calibrate it away
+- **incoherent**: random, from decoherence/relaxation. NOT correctable this way since it's not a fixed offset, its actual randomness
+- also crosstalk (unwanted coupling between qubits meant to be independent)
+- diagram notation: real gate = intended gate + small extra rotation (like X~ = Y_eps * X for axis miscalibration, or X~ = X_eps * X for angle miscalibration)
+
+## fidelity decay shapes (how to spot which error type from data)
+
+- coherent error accumulates ~quadratically with depth d (looks fine early, gets bad fast later - errors add up "in the same direction" like vectors)
+- incoherent/depolarizing accumulates ~linearly with d (random each time, doesn't compound the same way)
+- SPAM error (state prep + readout) = constant offset, independent of d - shows up as a nonzero intercept at d=0
+- practical use: shape of your fidelity-vs-depth curve tells you what kind of error is dominating
+
+## noise math cheat sheet
+
+- depolarizing: D(rho) = (1-p)*rho + p*I/2^n -> equivalent to random X/Y/Z each w prob p/4 (i derived this one)
+- coherent noise example: CPhase gate with wrong angle theta instead of pi, theta drawn from a normal distribution (fixed per run, but unknown/random across characterization attempts)
+- readout error = confusion matrix M, p(read 1 | was 0) and p(read 0 | was 1) - detector messing up, not a real state error
+- Pauli-Lindblad model = depolarizing but generalized - instead of ONE p for all non-identity paulis, every pauli term (XY, ZZ, IX, etc) gets its own rate lambda_k. more realistic/detailed picture of noise structure
+
+## fidelity, the actual formula
+
+- general (mixed states): F(rho1,rho2) = Tr[sqrt(sqrt(rho1) rho2 sqrt(rho1))]^2
+- simplifies a LOT if rho1 is pure (comparing to known ideal target): F = <psi1|rho2|psi1>
+- my ghz_fidelity function (just counting 00..0 / 11..1 outcomes) is a cheap proxy for this - only single basis, so it misses phase errors. real fidelity via state tomography catches those
+
+## device limits (why circuits cant just be huge)
+
+- connectivity: heavy-hex forces SWAPs for non-adjacent qubits = more depth/error. tradeoff: limited connectivity also makes noise characterization tractable (can assume noise is only local-ish, not everywhere)
+- depth: T1/T2 ~ 50-100us gives roughly 100-300 two-qubit gate layers before decoherence wins. hard ceiling
+- qubit count: more qubits = more entangling gates = more places for error to sneak in, eventually signal is indistinguishable from noise
+
+## 3 ways to deal with noise (increasing cost/power)
+
+1. **suppression** - stop error before it happens. e.g. dynamical decoupling (DD): insert extra pulses during idle time so noise averages out (same idea as spin echo, just proactive). targets coherent error. cheap, low overhead
+2. **mitigation** - run noisy circuit, fix the answer in post-processing. e.g. zero noise extrapolation (run at multiple amplified noise levels, extrapolate back to zero). doesn't fix hardware, just statistically corrects final results. PEC (probabilistic error cancellation) is stronger but has exponential shot overhead (e^(2*gamma*d))
+3. **error correction** - actually fix errors mid-computation using redundant encoding across many physical qubits + ancillas + syndrome measurements + classical feedback. most powerful, most expensive (extra ancilla qubits per logical qubit). needed for real fault tolerant computing eventually
+
+## 3 simulation/execution tiers
+
+1. **ideal/noiseless simulator** (Statevector) - state = vector of 2^n amplitudes. exact math, but memory blows up exponentially (2^n) - dead past ~30 qubits. best for checking correctness
+2. **noisy simulator** (AerSimulator / FakeTorino) - state = density matrix (4^n scaling, worse than ideal). injects depolarizing/T1T2/readout noise after gates to mimic real hardware. free (no QPU time), good for testing robustness before running for real
+3. **real backend** - actual qubits, actual noise, noise drifts over time and varies per qubit. only way to get real quantum advantage, and only way to run past ~30-50 qubits at all since ideal sim is impossible there
+
+## mini lab: randomized benchmarking (RB) / interleaved RB
+
+- run long sequences of RANDOM clifford gates (not one repeated gate) so different gates' coherent errors partially cancel out -> cleaner average error rate
+- reference circuit = just random cliffords. interleaved circuit = same sequence but with your target gate inserted between every random clifford
+- compare fidelity decay of both -> isolates the error specifically from your target gate
+- run at multiple depths, average over many random samples -> fit curve -> get EPC (error per clifford), single clean number
+
+## mini lab: dynamical decoupling (DD)
+
+- trotterize a gate into d small steps (repeat() basically) so you can slot pulses between steps
+- insert alternating X / -X pulses between steps - X commutes with the gate (doesn't mess up the computation) but anti-commutes with Z-type noise (cancels dephasing, same mechanism as spin echo)
+- build both a no-DD and a DD version of the circuit, run state tomography at each step, compare fidelity to ideal state
+
+## mini lab: noise learner results (real measured DD tradeoffs)
+
+- DD strongly suppresses XY, YX, ZZ error rates
+- DD barely touches ZI, IZ rates (so it's not just "kills anything with Z in it", more selective than that)
+- DD actually INCREASES XX, YY rates - because the extra pulses are themselves imperfect gates, adding their own error
+- takeaway: DD is a real tradeoff, not a free win. only worth it if you actually measure that the errors it fixes outweigh the overhead it adds
+
